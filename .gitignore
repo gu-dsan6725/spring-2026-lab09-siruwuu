@@ -45,3 +45,6 @@ data/
 memory_store/
 *.pkl
 *.json
+
+# environment
+.env
