@@ -21,6 +21,9 @@ from strands import Agent
 from strands.telemetry import StrandsTelemetry
 from strands.tools.decorator import tool
 
+from strands.tools.mcp import MCPClient
+from mcp.client.streamable_http import streamablehttp_client
+
 
 # Configure logging
 logging.basicConfig(
@@ -72,6 +75,10 @@ def duckduckgo_search(
     except Exception as e:
         logger.error(f"DuckDuckGo search failed: {e}")
         return json.dumps({"error": str(e)})
+    
+def create_streamable_http_transport():
+    """Create streamable HTTP transport for Context7 MCP server."""
+    return streamablehttp_client("https://mcp.context7.com/mcp")
 
 
 def _setup_observability() -> TracerProvider:
@@ -104,7 +111,6 @@ def _setup_observability() -> TracerProvider:
     logger.info(f"Braintrust observability configured for project: {braintrust_project}")
     return tracer_provider
 
-
 def _create_agent() -> Agent:
     """
     Create and configure the Strands agent.
@@ -123,15 +129,13 @@ def _create_agent() -> Agent:
     os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
 
     # Configure the agent with system prompt
-    system_prompt = """You are a helpful AI assistant with access to DuckDuckGo web search.
+    system_prompt = """You are a helpful AI assistant with access to DuckDuckGo web search and MCP tools.
 
-Use the DuckDuckGo search tool to find current information, news, and answers to questions.
-Provide clear, accurate, and helpful responses based on the search results.
+Use the DuckDuckGo search tool for current events, news, and general web information.
+Use MCP tools when they are relevant, especially for documentation lookup or external tool capabilities.
+Provide clear, accurate, and helpful responses based on the available tools.
 Always cite your sources when using search results."""
-
-    # Create agent with Anthropic Claude 3 Haiku and DuckDuckGo tool
-    # Use Anthropic model directly (not through Bedrock)
-    # API key is already set in environment variable above
+    
     from strands.models import AnthropicModel
 
     model = AnthropicModel(
@@ -139,15 +143,76 @@ Always cite your sources when using search results."""
         max_tokens=4096
     )
 
-    # Create agent - observability is already configured globally via TracerProvider
+    # Load MCP tools from Context7
+    mcp_tools = []
+    try:
+        logger.info("Connecting to Context7 MCP server")
+        streamable_http_mcp_client = MCPClient(create_streamable_http_transport)
+
+        with streamable_http_mcp_client:
+            mcp_tools = streamable_http_mcp_client.list_tools_sync()
+
+        logger.info(f"Loaded {len(mcp_tools)} MCP tools from Context7")
+
+    except Exception as e:
+        logger.error(f"Failed to load MCP tools: {e}")
+        logger.info("Continuing with DuckDuckGo tool only")
+
+    # Combine tools
+    all_tools = [duckduckgo_search] + mcp_tools
+
     agent = Agent(
         system_prompt=system_prompt,
         model=model,
-        tools=[duckduckgo_search]
+        tools=all_tools
     )
 
     logger.info("Agent created successfully with Braintrust observability")
     return agent
+
+# def _create_agent() -> Agent:
+#     """
+#     Create and configure the Strands agent.
+
+#     Returns:
+#         Configured Agent instance
+#     """
+#     logger.info("Creating Strands agent")
+
+#     # Set up observability
+#     tracer_provider = _setup_observability()
+#     telemetry = StrandsTelemetry(tracer_provider=tracer_provider)
+
+#     # Get API key and set it in environment for LiteLLM
+#     anthropic_api_key = _get_env_var("ANTHROPIC_API_KEY")
+#     os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+
+#     # Configure the agent with system prompt
+#     system_prompt = """You are a helpful AI assistant with access to DuckDuckGo web search.
+
+# Use the DuckDuckGo search tool to find current information, news, and answers to questions.
+# Provide clear, accurate, and helpful responses based on the search results.
+# Always cite your sources when using search results."""
+
+#     # Create agent with Anthropic Claude 3 Haiku and DuckDuckGo tool
+#     # Use Anthropic model directly (not through Bedrock)
+#     # API key is already set in environment variable above
+#     from strands.models import AnthropicModel
+
+#     model = AnthropicModel(
+#         model_id="claude-3-haiku-20240307",
+#         max_tokens=4096
+#     )
+
+#     # Create agent - observability is already configured globally via TracerProvider
+#     agent = Agent(
+#         system_prompt=system_prompt,
+#         model=model,
+#         tools=[duckduckgo_search]
+#     )
+
+#     logger.info("Agent created successfully with Braintrust observability")
+#     return agent
 
 
 async def _run_agent_async(
