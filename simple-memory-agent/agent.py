@@ -544,27 +544,44 @@ class Agent:
             logger.error(f"Error processing chat: {e}")
             raise
 
-
-    def _extract_response_text(
-        self,
-        result
-    ) -> str:
-        """Extract text response from Strands agent result.
-
-        Args:
-            result: Strands agent result object
-
-        Returns:
-            Extracted text response
-        """
+    def _extract_response_text(self, result) -> str:
         content = result.message.get("content", [])
         text_parts = []
 
         for block in content:
-            if isinstance(block, dict) and "text" in block:
-                text_parts.append(block["text"])
+            if isinstance(block, dict):
+                if "text" in block and block["text"]:
+                    text_parts.append(str(block["text"]))
+            elif isinstance(block, str):
+                text_parts.append(block)
 
-        return " ".join(text_parts).strip()
+        response = " ".join(text_parts).strip()
+
+        if not response:
+            response = "I'm sorry, I wasn't able to generate a response."
+
+        return response
+
+    # def _extract_response_text(
+    #     self,
+    #     result
+    # ) -> str:
+    #     """Extract text response from Strands agent result.
+
+    #     Args:
+    #         result: Strands agent result object
+
+    #     Returns:
+    #         Extracted text response
+    #     """
+    #     content = result.message.get("content", [])
+    #     text_parts = []
+
+    #     for block in content:
+    #         if isinstance(block, dict) and "text" in block:
+    #             text_parts.append(block["text"])
+
+    #     return " ".join(text_parts).strip()
 
 
     def _store_conversation_async(

@@ -1,0 +1,59 @@
+=== Alice Session 1 ===
+
+User: Hi, I'm Alice. I'm a software engineer.
+Agent: Is there anything I can help you with today? Whether it's technical questions, coding help, project advice, or anything else, feel free to ask!
+
+User: I prefer Python for development.
+Agent: Got it! I've noted that you prefer Python for development. Python is a great choice with its readability, versatility, and extensive ecosystem of libraries. Whether you're working on web development, data science, automation, or other projects, I'm here to help with any Python-related questions or assistance you might need!
+
+User: What programming languages do I like?
+Agent: Based on what you've told me, you prefer **Python** for development. That's the programming language preference you've mentioned so far. If you have other programming languages you like or prefer, feel free to let me know and I'll remember those as well!
+
+User: I'm working on a FastAPI project.
+Agent: Great! FastAPI is an excellent choice for building modern APIs with Python. It's known for its speed, ease of use, and great documentation. 
+
+Is there anything specific about your FastAPI project that you'd like help with? I can assist with:
+- API design and structure
+- Authentication and authorization
+- Database integration
+- Request/response validation
+- Deployment
+- Performance optimization
+- Debugging and troubleshooting
+- Or anything else related to your project
+
+What would be most helpful for you right now?
+
+User: What have we discussed so far?
+Agent: Based on our conversation so far, here's what we've discussed:
+
+1. **About you**: You're a software engineer named Alice
+2. **Your preferences**: You prefer Python for development
+3. **Current project**: You're working on a FastAPI project
+
+That's the main context from our conversation. Is there anything else you'd like to discuss or any details you'd like to add about yourself or your work?
+
+
+=== Alice Session 2 (New Session) ===
+
+User: What do you remember about me?
+Agent: I don't have any stored memories about you yet. This appears to be either our first conversation or I don't have previous information saved about you.
+
+If you'd like me to remember important information about you for future conversations, feel free to tell me:
+- Your name or preferences
+- Your interests or goals
+- Any relevant background information
+- Specific preferences for how you'd like me to help you
+
+Just let me know what you'd like me to remember, and I'll store it for our future interactions!
+
+User: What project am I working on?
+Agent: I don't have any information stored about projects you're working on. This is the first I'm hearing about your work.
+
+Could you tell me about your current project? I'd be happy to:
+- Help you brainstorm or plan it
+- Assist with specific tasks or challenges
+- Remember details about it for future conversations
+
+Just share what you're working on!
+
