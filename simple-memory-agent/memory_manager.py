@@ -202,82 +202,11 @@ class MemoryManager:
                         "metadata": {}
                     })
 
-            logger.info(f"Found {len(memories)} relevant memories")
             return memories
 
         except Exception as e:
             logger.error(f"Error searching memories: {e}")
             return []
-
-    # async def search(
-    #     self,
-    #     user_id: str,
-    #     query: str,
-    #     limit: int = 5,
-    #     run_id: Optional[str] = None,
-    #     agent_id: Optional[str] = None,
-    #     metadata_filters: Optional[Dict[str, Any]] = None
-    # ) -> List[Dict[str, Any]]:
-    #     """Search memories asynchronously for a specific user with optional filtering."""
-    #     if not user_id or not user_id.strip():
-    #         raise ValueError("user_id cannot be empty")
-
-    #     if not query or not query.strip():
-    #         raise ValueError("Search query cannot be empty")
-
-    #     if limit < 1 or limit > 100:
-    #         raise ValueError("Limit must be between 1 and 100")
-
-    #     try:
-    #         logger.info(
-    #             f"Searching memories for user={user_id}: '{query}' "
-    #             f"(limit={limit}, cross-session by user_id)"
-    #         )
-
-    #         # Prefer first-class user_id search for cross-session recall
-    #         results = self.memory.search(
-    #             query=query,
-    #             user_id=user_id,
-    #             limit=limit
-    #         )
-
-    #         logger.debug(f"Raw Mem0 search results type: {type(results)}")
-    #         logger.debug(f"Raw Mem0 search results: {results}")
-
-    #         if isinstance(results, dict):
-    #             results = results.get("results", [])
-
-    #         if not results:
-    #             logger.info("No memories found for query")
-    #             return []
-
-    #         memories = []
-    #         for mem in results:
-    #             if isinstance(mem, dict):
-    #                 memories.append({
-    #                     "id": mem.get("id", "unknown"),
-    #                     "memory": mem.get("memory", str(mem)),
-    #                     "score": mem.get("score", 1.0),
-    #                     "created_at": mem.get("created_at", ""),
-    #                     "metadata": mem.get("metadata", {})
-    #                 })
-    #             else:
-    #                 memories.append({
-    #                     "id": "unknown",
-    #                     "memory": str(mem),
-    #                     "score": 1.0,
-    #                     "created_at": "",
-    #                     "metadata": {}
-    #                 })
-
-    #         logger.info(f"Found {len(memories)} relevant memories")
-    #         logger.debug(f"Results:\n{json.dumps(memories, indent=2, default=str)}")
-
-    #         return memories
-
-    #     except Exception as e:
-    #         logger.error(f"Error searching memories: {e}")
-    #         return []
 
     async def insert(
         self,
@@ -332,12 +261,17 @@ class MemoryManager:
             if run_id:
                 full_metadata["run_id"] = run_id
 
+            messages = [
+                {"role": "user", "content": content}
+                ]
+
             # Store in Mem0 cloud platform with user_id and run_id as first-class parameters
             self.memory.add(
-                content,
+                messages,
                 user_id=user_id,
                 run_id=run_id,
-                metadata=full_metadata
+                metadata=full_metadata,
+                version="v2"
             )
 
             logger.info(f"Memory stored for user={user_id} with context (agent={agent_id}, session={run_id})")
@@ -363,141 +297,141 @@ class MemoryManager:
             }
 
 
-    async def search(
-        self,
-        user_id: str,
-        query: str,
-        limit: int = 5,
-        run_id: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        metadata_filters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
-        """Search memories asynchronously for a specific user with optional filtering.
+    # async def search(
+    #     self,
+    #     user_id: str,
+    #     query: str,
+    #     limit: int = 5,
+    #     run_id: Optional[str] = None,
+    #     agent_id: Optional[str] = None,
+    #     metadata_filters: Optional[Dict[str, Any]] = None
+    # ) -> List[Dict[str, Any]]:
+    #     """Search memories asynchronously for a specific user with optional filtering.
 
-        Performs semantic search across stored memories using vector similarity.
-        Multi-tenant: user_id isolates search to specific user's memories.
-        Returns the most relevant memories ranked by relevance score. Must be awaited.
+    #     Performs semantic search across stored memories using vector similarity.
+    #     Multi-tenant: user_id isolates search to specific user's memories.
+    #     Returns the most relevant memories ranked by relevance score. Must be awaited.
 
-        IMPORTANT: Search retrieves memories from ALL sessions for the user (cross-session recall).
-        We do NOT filter by run_id during search - we want the agent to recall information
-        from any previous conversation, not just the current session.
+    #     IMPORTANT: Search retrieves memories from ALL sessions for the user (cross-session recall).
+    #     We do NOT filter by run_id during search - we want the agent to recall information
+    #     from any previous conversation, not just the current session.
 
-        Args:
-            user_id: User identifier (required for multi-tenant isolation)
-            query: Search query to find relevant memories
-            limit: Maximum number of memories to return (default: 5)
-            run_id: Provided for context but NOT used in search (cross-session recall)
-            agent_id: Filter by specific agent (optional)
-            metadata_filters: Filter by metadata (e.g., {"tags": {"in": ["work"]}})
+    #     Args:
+    #         user_id: User identifier (required for multi-tenant isolation)
+    #         query: Search query to find relevant memories
+    #         limit: Maximum number of memories to return (default: 5)
+    #         run_id: Provided for context but NOT used in search (cross-session recall)
+    #         agent_id: Filter by specific agent (optional)
+    #         metadata_filters: Filter by metadata (e.g., {"tags": {"in": ["work"]}})
 
-        Returns:
-            List of memory dictionaries with content, scores, and metadata
+    #     Returns:
+    #         List of memory dictionaries with content, scores, and metadata
 
-        Raises:
-            ValueError: If user_id or query is empty, or limit is invalid
+    #     Raises:
+    #         ValueError: If user_id or query is empty, or limit is invalid
 
-        Note:
-            Multi-tenant filtering:
-            - Each user only sees their own memories (user_id isolation)
-            - Searches across ALL sessions (no run_id filter for cross-session recall)
-            - Optional agent filter: search(user_id, query, agent_id="assistant-1")
-            - Optional metadata filter: search(user_id, query, metadata_filters={"tags": {"in": ["work"]}})
-        """
-        if not user_id or not user_id.strip():
-            raise ValueError("user_id cannot be empty")
+    #     Note:
+    #         Multi-tenant filtering:
+    #         - Each user only sees their own memories (user_id isolation)
+    #         - Searches across ALL sessions (no run_id filter for cross-session recall)
+    #         - Optional agent filter: search(user_id, query, agent_id="assistant-1")
+    #         - Optional metadata filter: search(user_id, query, metadata_filters={"tags": {"in": ["work"]}})
+    #     """
+    #     if not user_id or not user_id.strip():
+    #         raise ValueError("user_id cannot be empty")
 
-        if not query or not query.strip():
-            raise ValueError("Search query cannot be empty")
+    #     if not query or not query.strip():
+    #         raise ValueError("Search query cannot be empty")
 
-        if limit < 1 or limit > 100:
-            raise ValueError("Limit must be between 1 and 100")
+    #     if limit < 1 or limit > 100:
+    #         raise ValueError("Limit must be between 1 and 100")
 
-        try:
-            logger.info(
-                f"Searching memories for user={user_id}: '{query}' "
-                f"(limit={limit}, searching across ALL sessions)"
-            )
+    #     try:
+    #         logger.info(
+    #             f"Searching memories for user={user_id}: '{query}' "
+    #             f"(limit={limit}, searching across ALL sessions)"
+    #         )
 
-            # Get all run_ids for this user for cross-session recall
-            # Mem0 stores memories under run_id, so we need to query all runs
-            try:
-                users_data = self.memory.users()
-                # Filter for runs (type='run') that belong to this user
-                # Runs are typically named like: user_id-session-N
-                user_runs = [u['name'] for u in users_data.get('results', [])
-                           if u.get('type') == 'run' and u['name'].startswith(user_id + '-')]
-                logger.debug(f"Found {len(user_runs)} runs for user={user_id}: {user_runs}")
-            except Exception as e:
-                logger.warning(f"Could not get user runs, falling back to user_id filter: {e}")
-                user_runs = None
+    #         # Get all run_ids for this user for cross-session recall
+    #         # Mem0 stores memories under run_id, so we need to query all runs
+    #         try:
+    #             users_data = self.memory.users()
+    #             # Filter for runs (type='run') that belong to this user
+    #             # Runs are typically named like: user_id-session-N
+    #             user_runs = [u['name'] for u in users_data.get('results', [])
+    #                        if u.get('type') == 'run' and u['name'].startswith(user_id + '-')]
+    #             logger.debug(f"Found {len(user_runs)} runs for user={user_id}: {user_runs}")
+    #         except Exception as e:
+    #             logger.warning(f"Could not get user runs, falling back to user_id filter: {e}")
+    #             user_runs = None
 
-            # Build filters for Mem0 cloud platform
-            # Use OR logic across all user's run_ids for cross-session recall
-            if user_runs and len(user_runs) > 0:
-                filters = {
-                    'OR': [{'run_id': run} for run in user_runs]
-                }
-            else:
-                # Fallback to user_id filter (may not work with current Mem0 API)
-                filters = {"user_id": user_id}
+    #         # Build filters for Mem0 cloud platform
+    #         # Use OR logic across all user's run_ids for cross-session recall
+    #         if user_runs and len(user_runs) > 0:
+    #             filters = {
+    #                 'OR': [{'run_id': run} for run in user_runs]
+    #             }
+    #         else:
+    #             # Fallback to user_id filter (may not work with current Mem0 API)
+    #             filters = {"user_id": user_id}
 
-            if agent_id and not user_runs:
-                filters["agent_id"] = agent_id
+    #         if agent_id and not user_runs:
+    #             filters["agent_id"] = agent_id
 
-            # Combine with any additional metadata filters
-            if metadata_filters and not user_runs:
-                filters.update(metadata_filters)
+    #         # Combine with any additional metadata filters
+    #         if metadata_filters and not user_runs:
+    #             filters.update(metadata_filters)
 
-            # Search using Mem0 cloud platform with filters
-            results = self.memory.search(
-                query=query,
-                filters=filters,
-                limit=limit
-            )
+    #         # Search using Mem0 cloud platform with filters
+    #         results = self.memory.search(
+    #             query=query,
+    #             filters=filters,
+    #             limit=limit
+    #         )
 
-            # DEBUG: Log raw results from Mem0
-            logger.debug(f"Raw Mem0 search results type: {type(results)}")
-            logger.debug(f"Raw Mem0 search results: {results}")
+    #         # DEBUG: Log raw results from Mem0
+    #         logger.debug(f"Raw Mem0 search results type: {type(results)}")
+    #         logger.debug(f"Raw Mem0 search results: {results}")
 
-            # Handle Mem0 returning dict with 'results' key
-            if isinstance(results, dict):
-                results = results.get("results", [])
-                logger.debug(f"Extracted results list: {results}")
+    #         # Handle Mem0 returning dict with 'results' key
+    #         if isinstance(results, dict):
+    #             results = results.get("results", [])
+    #             logger.debug(f"Extracted results list: {results}")
 
-            if not results:
-                logger.info("No memories found for query")
-                return []
+    #         if not results:
+    #             logger.info("No memories found for query")
+    #             return []
 
-            # Normalize results to consistent format
-            memories = []
-            for i, mem in enumerate(results):
-                logger.debug(f"Processing result {i}: type={type(mem)}, value={mem}")
-                if isinstance(mem, dict):
-                    memories.append({
-                        "id": mem.get("id", "unknown"),
-                        "memory": mem.get("memory", str(mem)),
-                        "score": mem.get("score", 1.0),
-                        "created_at": mem.get("created_at", ""),
-                        "metadata": mem.get("metadata", {})
-                    })
-                else:
-                    # Handle string results from backend
-                    memories.append({
-                        "id": "unknown",
-                        "memory": str(mem),
-                        "score": 1.0,
-                        "created_at": "",
-                        "metadata": {}
-                    })
+    #         # Normalize results to consistent format
+    #         memories = []
+    #         for i, mem in enumerate(results):
+    #             logger.debug(f"Processing result {i}: type={type(mem)}, value={mem}")
+    #             if isinstance(mem, dict):
+    #                 memories.append({
+    #                     "id": mem.get("id", "unknown"),
+    #                     "memory": mem.get("memory", str(mem)),
+    #                     "score": mem.get("score", 1.0),
+    #                     "created_at": mem.get("created_at", ""),
+    #                     "metadata": mem.get("metadata", {})
+    #                 })
+    #             else:
+    #                 # Handle string results from backend
+    #                 memories.append({
+    #                     "id": "unknown",
+    #                     "memory": str(mem),
+    #                     "score": 1.0,
+    #                     "created_at": "",
+    #                     "metadata": {}
+    #                 })
 
-            logger.info(f"Found {len(memories)} relevant memories")
-            logger.debug(f"Results:\n{json.dumps(memories, indent=2, default=str)}")
+    #         logger.info(f"Found {len(memories)} relevant memories")
+    #         logger.debug(f"Results:\n{json.dumps(memories, indent=2, default=str)}")
 
-            return memories
+    #         return memories
 
-        except Exception as e:
-            logger.error(f"Error searching memories: {e}")
-            return []
+    #     except Exception as e:
+    #         logger.error(f"Error searching memories: {e}")
+    #         return []
 
 
     async def export(
@@ -564,7 +498,7 @@ class MemoryManager:
         try:
             logger.info(f"Retrieving all memories for user={user_id}")
 
-            result = self.memory.get_all(filters={"user_id": user_id})
+            result = self.memory.get_all(filters={"AND": [{"user_id": user_id}]})
 
             if isinstance(result, dict):
                 all_memories = result.get("results", result.get("memories", []))
@@ -723,7 +657,9 @@ class MemoryManager:
         try:
             # Format conversation as string for Mem0 cloud platform
             # (Mem0 cloud works better with string format than message list)
-            conversation_text = f"User: {user_message}\nAssistant: {assistant_message}"
+            # conversation_text = f"User: {user_message}\nAssistant: {assistant_message}"
+            messages = [{"role": "user", "content": user_message}, 
+                        {"role": "assistant", "content": assistant_message},]
 
             # Enhance metadata with session context
             full_metadata = metadata or {}
@@ -741,19 +677,14 @@ class MemoryManager:
                 f"(user msg length: {len(user_message)})"
             )
 
-            # self.memory.add(
-            #     conversation_text,
-            #     user_id=user_id,
-            #     run_id=run_id,
-            #     metadata=full_metadata
-            # )
-            
             result = self.memory.add(
-                conversation_text,
+                messages,
                 user_id=user_id,
                 run_id=run_id,
-                metadata=full_metadata
+                metadata=full_metadata,
+                version="v2"
             )
+            
             logger.info(f"Mem0 add_conversation result for user={user_id}: {result}")
 
             logger.debug(f"Conversation stored for user={user_id} with context (agent={agent_id}, session={run_id})")
